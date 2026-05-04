@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <h1 style="margin: 0;">{{ case.title }}</h1>
+            <p style="color: var(--text-dim); margin-top: 8px;">Target: @{{ case.target_username }} | Platform: {{ case.platform }}</p>
+        </div>
+        <div>
+            <button id="btn-capture" class="btn" onclick="startCapture()">▶ Start Extraction</button>
+            <a href="/cases/{{ case.id }}/report" target="_blank" class="btn btn-outline" style="margin-left: 8px; border-color: #34d399; color: #34d399;">📄 Generate Report</a>
+            <a href="/dashboard" class="btn btn-outline" style="margin-left: 8px;">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Live Logs Box -->
+    <div id="log-container" class="live-log-box" style="display: none;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <span class="pulse"></span>
+            <strong style="color: #fff;">LIVE SCRAPER STATUS</strong>
+        </div>
+        <div id="logs" style="max-height: 150px; overflow-y: auto;">
+            <div style="color: var(--text-dim);">Awaiting connection...</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid" id="evidence-grid">
+    {% for entry in entries %}
+    <div class="glass-card animate-fade">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div>
+                <span class="badge" style="background: rgba(255,255,255,0.1);">📝 Post</span>
+                <span style="font-size: 0.8rem; color: var(--text-dim); margin-left: 8px;">{{ entry.captured_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+            
+            <label style="display: flex; align-items: center; cursor: pointer; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 16px; border: 1px solid var(--border);">
+                <input type="checkbox" onchange="toggleReport({{ entry.id }})" {% if entry.include_in_report %}checked{% endif %} style="margin-right: 8px; accent-color: var(--accent);">
+                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main);">Include in Report</span>
+            </label>
+        </div>
+        
+        <p style="margin-bottom: 16px;">{{ entry.content }}</p>
+        
+        <div style="display: flex; gap: 16px; margin-bottom: 16px; font-size: 0.85rem; color: var(--text-dim);">
+            <span>❤️ {{ entry.likes }} Likes</span>
+            <span>💬 {{ entry.replies_count }} Comments</span>
+        </div>
+        
+        {% if entry.screenshot_path %}
+        <div class="entry-screenshot">
+            <img src="/screenshots/{{ entry.screenshot_path }}" alt="Screenshot">
+        </div>
+        {% endif %}
+        
+        {% if entry.screenshot_hash %}
+        <div style="margin-top: 16px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px;">
+            <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">SHA-256 Integrity Hash</span>
+            <span class="hash-badge">{{ entry.screenshot_hash }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="glass-card" style="grid-column: 1 / -1; text-align: center; padding: 48px;">
+        <h3 style="color: var(--text-dim);">No Evidence Collected Yet</h3>
+        <p>Click "Start Extraction" to begin the automated scraping process.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    const caseId = {{ case.id }};
+    let ws;
+
+    function startCapture() {
+        document.getElementById('log-container').style.display = 'block';
+        document.getElementById('btn-capture').style.display = 'none';
+        
+        // Setup WebSocket
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}/ws/case/${caseId}/logs`);
+        
+        ws.onmessage = function(event) {
+            const logsDiv = document.getElementById('logs');
+            const newLog = document.createElement('div');
+            newLog.textContent = `> ${event.data}`;
+            logsDiv.appendChild(newLog);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+
+            if(event.data.includes("Capture completed") || event.data.includes("failed")) {
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        };
+
+        // Trigger API
+        fetch(`/cases/${caseId}/capture`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.error) {
+                    alert(data.error);
+                }
+            });
+    }
+
+    function toggleReport(entryId) {
+        fetch(`/cases/${caseId}/entries/${entryId}/toggle_report`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status !== "success") {
+                    alert("Failed to update report status.");
+                }
+            });
+    }
+</script>
+{% endblock %}

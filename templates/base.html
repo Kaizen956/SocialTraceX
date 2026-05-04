@@ -1,0 +1,30 @@
+<!-- base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForensicView Enterprise</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    {% if request.session.get("user_id") %}
+    <nav class="navbar">
+        <a href="/dashboard" class="nav-brand">ForensicView</a>
+        <div class="nav-links">
+            <span style="color: var(--text-dim); margin-right: 16px;">Welcome, {{ user.name }}</span>
+            <a href="/dashboard">Dashboard</a>
+            {% if request.session.get("role") == "admin" %}
+            <a href="/admin">Admin Panel</a>
+            {% endif %}
+            <a href="/logout" style="color: var(--danger);">Logout</a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <div class="container animate-fade">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

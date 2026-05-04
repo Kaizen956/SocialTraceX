@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+    <div>
+        <h1 style="margin: 0;">Case Dashboard</h1>
+        <p style="color: var(--text-dim); margin-top: 8px;">Active Cases: {{ active_cases }} | Total Evidence: {{ total_entries }}</p>
+    </div>
+</div>
+
+<div class="grid">
+    <!-- Create New Case Card -->
+    <div class="glass-card" style="border-style: dashed; background: transparent; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer;" onclick="document.getElementById('new-case-form').style.display='block'; this.style.display='none';">
+        <div style="font-size: 2rem; color: var(--accent);">+</div>
+        <h3 style="margin-top: 8px;">New Investigation</h3>
+    </div>
+
+    <!-- Hidden Form -->
+    <div class="glass-card" id="new-case-form" style="display: none;">
+        <h3 style="margin-top: 0;">Create Case</h3>
+        <form method="POST" action="/cases/new">
+            <div class="form-group">
+                <label class="form-label">Case Title</label>
+                <input type="text" name="title" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Target Username</label>
+                <input type="text" name="target_username" class="form-input" required placeholder="@username">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Platform</label>
+                <select name="platform" class="form-input">
+                    <option value="instagram">Instagram</option>
+                    <option value="twitter">Twitter / X</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Capture Target</label>
+                <select name="capture_type" class="form-input">
+                    <option value="posts">Public Posts</option>
+                    <option value="messages">Direct Messages (Experimental)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Max Posts to Analyze</label>
+                <input type="number" name="max_posts" class="form-input" value="10" min="1" max="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Keywords (comma separated)</label>
+                <input type="text" name="keywords" class="form-input" placeholder="drugs, illegal, weapon">
+            </div>
+            <button type="submit" class="btn" style="width: 100%;">Create Case</button>
+        </form>
+    </div>
+
+    <!-- Existing Cases -->
+    {% for case in cases %}
+    <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h3 style="margin-top: 0; margin-bottom: 8px;">{{ case.title }}</h3>
+            <span class="badge {% if case.status == 'active' %}badge-active{% else %}badge-closed{% endif %}">{{ case.status }}</span>
+        </div>
+        <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 0;">Target: @{{ case.target_username }} ({{ case.platform }})</p>
+        <p style="font-size: 0.8rem; color: var(--text-dim);">Created: {{ case.created_at.strftime('%Y-%m-%d') }}</p>
+        <a href="/cases/{{ case.id }}" class="btn btn-outline" style="width: 100%; text-align: center; box-sizing: border-box; margin-top: 16px;">View Evidence</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
