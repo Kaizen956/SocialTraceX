@@ -1,3 +1,6 @@
 /screenshots/*
 /__pycache__/*
+/data/*
+/Frontend
+/screenshots/*
 

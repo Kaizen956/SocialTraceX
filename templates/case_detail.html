@@ -1,116 +1,346 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="glass-card" style="margin-bottom: 24px;">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-        <div>
-            <h1 style="margin: 0;">{{ case.title }}</h1>
-            <p style="color: var(--text-dim); margin-top: 8px;">Target: @{{ case.target_username }} | Platform: {{ case.platform }}</p>
-        </div>
-        <div>
-            <button id="btn-capture" class="btn" onclick="startCapture()">▶ Start Extraction</button>
-            <a href="/cases/{{ case.id }}/report" target="_blank" class="btn btn-outline" style="margin-left: 8px; border-color: #34d399; color: #34d399;">📄 Generate Report</a>
-            <a href="/dashboard" class="btn btn-outline" style="margin-left: 8px;">Back to Dashboard</a>
-        </div>
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h2 class="text-3xl font-bold orbitron">Case #{{ case.id }}: {{ case.title }}</h2>
+        <p class="text-purple-300/70">Target: @{{ case.target_username }} | Platform: {{ case.platform | title }}</p>
     </div>
-
-    <!-- Live Logs Box -->
-    <div id="log-container" class="live-log-box" style="display: none;">
-        <div style="display: flex; align-items: center; margin-bottom: 8px;">
-            <span class="pulse"></span>
-            <strong style="color: #fff;">LIVE SCRAPER STATUS</strong>
-        </div>
-        <div id="logs" style="max-height: 150px; overflow-y: auto;">
-            <div style="color: var(--text-dim);">Awaiting connection...</div>
-        </div>
+    <div class="flex space-x-3">
+        <button id="startCaptureBtn" class="btn btn-primary" onclick="showDiscoveryModal()">
+            <i class="bi bi-search"></i> {% if case.capture_type == 'posts' %}Run Extraction{% else %}1. Run Discovery Phase{% endif %}
+        </button>
+        <a href="/cases/{{ case.id }}/report" class="btn btn-success" target="_blank">
+            <i class="bi bi-file-earmark-pdf"></i> Generate Report
+        </a>
     </div>
 </div>
 
-<div class="grid" id="evidence-grid">
-    {% for entry in entries %}
-    <div class="glass-card animate-fade">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-            <div>
-                <span class="badge" style="background: rgba(255,255,255,0.1);">📝 Post</span>
-                <span style="font-size: 0.8rem; color: var(--text-dim); margin-left: 8px;">{{ entry.captured_at.strftime('%Y-%m-%d %H:%M') }}</span>
-            </div>
+<!-- Discovery Modal (Hidden) -->
+<div id="discoveryModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+    <div class="glass-panel p-8 max-w-md w-full rounded-2xl border border-purple-400/30 shadow-2xl">
+        <h3 class="text-2xl orbitron text-purple-200 mb-4">Select Discovery Mode</h3>
+        <p class="text-purple-300/70 text-sm mb-6">What would you like to target during this Phase 1 extraction?</p>
+        
+        <div class="space-y-4">
+            <button onclick="executeDiscovery('posts')" class="w-full flex items-center justify-between p-4 rounded-xl border border-purple-500/30 bg-purple-900/20 hover:bg-purple-600/30 transition-all group">
+                <div class="flex items-center">
+                    <i class="bi bi-grid-3x3 text-2xl text-purple-400 mr-4 group-hover:scale-110 transition-transform"></i>
+                    <div class="text-left">
+                        <div class="font-bold text-purple-200">Public Posts</div>
+                        <div class="text-xs text-purple-300/60">Analyze profile grid and post interactions</div>
+                    </div>
+                </div>
+                <i class="bi bi-arrow-right text-purple-400"></i>
+            </button>
             
-            <label style="display: flex; align-items: center; cursor: pointer; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 16px; border: 1px solid var(--border);">
-                <input type="checkbox" onchange="toggleReport({{ entry.id }})" {% if entry.include_in_report %}checked{% endif %} style="margin-right: 8px; accent-color: var(--accent);">
-                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main);">Include in Report</span>
-            </label>
+            <button onclick="executeDiscovery('messages')" class="w-full flex items-center justify-between p-4 rounded-xl border border-pink-500/30 bg-pink-900/20 hover:bg-pink-600/30 transition-all group">
+                <div class="flex items-center">
+                    <i class="bi bi-chat-dots text-2xl text-pink-400 mr-4 group-hover:scale-110 transition-transform"></i>
+                    <div class="text-left">
+                        <div class="font-bold text-pink-200">Direct Messages</div>
+                        <div class="text-xs text-pink-300/60">Analyze inbox interactions and volumes</div>
+                    </div>
+                </div>
+                <i class="bi bi-arrow-right text-pink-400"></i>
+            </button>
         </div>
         
-        <p style="margin-bottom: 16px;">{{ entry.content }}</p>
-        
-        <div style="display: flex; gap: 16px; margin-bottom: 16px; font-size: 0.85rem; color: var(--text-dim);">
-            <span>❤️ {{ entry.likes }} Likes</span>
-            <span>💬 {{ entry.replies_count }} Comments</span>
-        </div>
-        
-        {% if entry.screenshot_path %}
-        <div class="entry-screenshot">
-            <img src="/screenshots/{{ entry.screenshot_path }}" alt="Screenshot">
-        </div>
-        {% endif %}
-        
-        {% if entry.screenshot_hash %}
-        <div style="margin-top: 16px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 4px;">
-            <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">SHA-256 Integrity Hash</span>
-            <span class="hash-badge">{{ entry.screenshot_hash }}</span>
-        </div>
-        {% endif %}
+        <button onclick="hideDiscoveryModal()" class="mt-6 w-full py-2 text-sm text-purple-300/50 hover:text-purple-200 transition-all border border-purple-500/30 rounded-lg hover:bg-purple-500/10 hover:border-purple-400/60">Cancel</button>
     </div>
-    {% else %}
-    <div class="glass-card" style="grid-column: 1 / -1; text-align: center; padding: 48px;">
-        <h3 style="color: var(--text-dim);">No Evidence Collected Yet</h3>
-        <p>Click "Start Extraction" to begin the automated scraping process.</p>
-    </div>
-    {% endfor %}
 </div>
+
+<!-- Live Terminal Status Box -->
+<div class="mb-8">
+    <div class="glass-panel border-purple-500/30 rounded-xl overflow-hidden shadow-lg shadow-purple-500/10">
+        <div class="bg-black/40 border-b border-purple-500/30 px-4 py-2 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="bi bi-terminal text-purple-400"></i>
+                <span class="font-semibold text-purple-200 text-sm orbitron tracking-wider">SYSTEM LOGS</span>
+            </div>
+            <div class="flex space-x-1">
+                <div class="w-3 h-3 rounded-full bg-rose-500/50"></div>
+                <div class="w-3 h-3 rounded-full bg-amber-500/50"></div>
+                <div class="w-3 h-3 rounded-full bg-emerald-500/50"></div>
+            </div>
+        </div>
+        <div class="bg-black/60 p-4 h-40 overflow-y-auto font-mono text-sm" id="terminalLogs">
+            <div class="text-purple-300/40">Initializing connection to Secure Extraction Server... OK</div>
+            <div class="text-purple-300/40">Case Target: @{{ case.target_username }}</div>
+            <div class="text-emerald-400 mt-2">> Ready for commands.</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-12 gap-6 mb-8">
+    <div class="col-span-12 md:col-span-3">
+        <div class="card h-full flex flex-col">
+            <div class="card-header">Profile Metadata</div>
+            <div class="card-body text-purple-200 space-y-3">
+                <div class="flex justify-between"><span class="text-purple-300/60">Followers:</span> <strong id="profFollowers" class="text-purple-100">{{ case.profile_followers }}</strong></div>
+                <div class="flex justify-between"><span class="text-purple-300/60">Following:</span> <strong id="profFollowing" class="text-purple-100">{{ case.profile_following }}</strong></div>
+                <div class="flex justify-between"><span class="text-purple-300/60">Posts:</span> <strong id="profPosts" class="text-purple-100">{{ case.profile_posts }}</strong></div>
+                <hr class="border-purple-500/20 my-2">
+                <div class="flex justify-between"><span class="text-purple-300/60">Last Action:</span> <span class="text-emerald-400 text-xs text-right truncate max-w-[120px]">{{ case.capture_status_msg }}</span></div>
+            </div>
+        </div>
+    </div>
+    {% if case.capture_type != 'posts' %}
+    <div class="col-span-12 md:col-span-9">
+        <div class="grid grid-cols-2 gap-6 h-full">
+            <!-- Mind Map 50% -->
+            <div class="card h-full flex flex-col">
+                <div class="card-header flex justify-between items-center">
+                    <span class="text-sm">Phase 1: Relationship Graph</span>
+                    <button class="text-purple-300 hover:text-white transition-all border border-purple-500/30 px-2 py-1 rounded hover:bg-purple-500/10 hover:border-purple-400/60" onclick="loadVisualData()"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+                <div class="flex-grow p-0 relative min-h-[300px]">
+                    <div id="mindmap" class="absolute inset-0 w-full h-full"></div>
+                </div>
+            </div>
+            <!-- Chart 50% -->
+            <div class="card h-full flex flex-col">
+                <div class="card-header">
+                    <span class="text-sm">Interaction Volume</span>
+                </div>
+                <div class="flex-grow flex items-center justify-center p-4 min-h-[300px]">
+                    <canvas id="engagementChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="mb-6">
+    <h4 class="text-xl font-bold orbitron text-purple-200 mb-4 border-b border-purple-500/30 pb-2">Profile Statistics</h4>
+    <div class="glass-panel overflow-hidden rounded-xl border border-purple-500/30 shadow-lg shadow-purple-500/10">
+        <table class="w-full text-left text-purple-200">
+            <thead class="bg-purple-900/40 border-b border-purple-500/30">
+                <tr>
+                    <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Followers</th>
+                    <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Following</th>
+                    <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Total Posts</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="hover:bg-purple-800/20 transition-colors">
+                    <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_followers }}</td>
+                    <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_following }}</td>
+                    <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_posts }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Captured Evidence Screenshots Gallery -->
+<div class="mt-8 mb-6">
+    <h4 class="text-xl font-bold orbitron text-purple-200 mb-4 border-b border-purple-500/30 pb-2">Captured Evidence Gallery</h4>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% set has_screenshots = false %}
+        {% for entry in entries %}
+            {% if entry.status == 'captured' and entry.screenshot_path %}
+                {% set has_screenshots = true %}
+                <div class="glass-panel overflow-hidden rounded-xl border border-purple-500/30 group hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all">
+                    <div class="relative h-48 bg-black/50 border-b border-purple-500/20 overflow-hidden">
+                        <img src="/screenshots/{{ entry.screenshot_path }}" alt="Evidence {{ entry.id }}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                        <div class="absolute bottom-2 left-3">
+                            <span class="text-xs font-mono text-purple-300 bg-black/60 px-2 py-1 rounded">ID: {{ entry.id }}</span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div class="text-sm text-purple-200 font-semibold mb-1 flex justify-between">
+                            <span>{{ entry.from_user }} &rarr; {{ entry.to_user }}</span>
+                            <i class="bi bi-check-circle-fill text-emerald-400" title="Included in Report"></i>
+                        </div>
+                        <p class="text-xs text-purple-300/60 truncate mb-3">{{ entry.content or "No text content" }}</p>
+                        <div class="text-xs text-emerald-400/80 mb-2 font-mono flex items-center space-x-1">
+                            <i class="bi bi-clock-history"></i> 
+                            <span>Captured: {{ entry.captured_at.strftime('%Y-%m-%d %H:%M:%S') if entry.captured_at else "N/A" }}</span>
+                        </div>
+                        <div class="text-xs font-mono text-purple-400/50 truncate" title="{{ entry.screenshot_hash }}">
+                            SHA256: {{ entry.screenshot_hash[:16] }}...
+                        </div>
+                        <div class="mt-3 text-right">
+                            <a href="/screenshots/{{ entry.screenshot_path }}" target="_blank" class="text-xs text-purple-300 hover:text-white transition-colors bg-purple-500/20 px-3 py-1.5 rounded hover:bg-purple-500/40 border border-purple-500/30">
+                                View Full Image
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+        
+        {% if not has_screenshots %}
+        <div class="col-span-full py-12 text-center text-purple-300/40 glass-panel rounded-xl border border-dashed border-purple-500/20">
+            <i class="bi bi-image text-4xl mb-3 block opacity-50"></i>
+            <p>No screenshots captured yet. Run Deep Capture on an entry above.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Vis.js and Chart.js -->
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
     const caseId = {{ case.id }};
-    let ws;
+    let network = null;
+    let chart = null;
 
-    function startCapture() {
-        document.getElementById('log-container').style.display = 'block';
-        document.getElementById('btn-capture').style.display = 'none';
-        
-        // Setup WebSocket
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        ws = new WebSocket(`${protocol}//${window.location.host}/ws/case/${caseId}/logs`);
-        
-        ws.onmessage = function(event) {
-            const logsDiv = document.getElementById('logs');
-            const newLog = document.createElement('div');
-            newLog.textContent = `> ${event.data}`;
-            logsDiv.appendChild(newLog);
-            logsDiv.scrollTop = logsDiv.scrollHeight;
+    // Connect to WebSocket for real-time logs
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/case/${caseId}/logs`;
+    const ws = new WebSocket(wsUrl);
 
-            if(event.data.includes("Capture completed") || event.data.includes("failed")) {
-                setTimeout(() => window.location.reload(), 2000);
+    const termLogs = document.getElementById('terminalLogs');
+
+    function appendLog(msg, colorClass = "text-purple-200") {
+        const time = new Date().toLocaleTimeString();
+        const line = document.createElement('div');
+        line.className = `${colorClass} mt-1`;
+        line.innerHTML = `<span class="text-purple-500/50">[${time}]</span> <span class="ml-2">${msg}</span>`;
+        termLogs.appendChild(line);
+        termLogs.scrollTop = termLogs.scrollHeight;
+    }
+
+    ws.onmessage = function(event) {
+        appendLog(event.data, "text-purple-100");
+        if(event.data.includes("Discovery completed") || event.data.includes("Targeted capture completed")) {
+            setTimeout(() => {
+                loadVisualData();
+                location.reload(); // Reload to show new evidence
+            }, 2000);
+        }
+    };
+
+    function showDiscoveryModal() {
+        document.getElementById('discoveryModal').classList.remove('hidden');
+    }
+    function hideDiscoveryModal() {
+        document.getElementById('discoveryModal').classList.add('hidden');
+    }
+
+    function executeDiscovery(captureType) {
+        hideDiscoveryModal();
+        appendLog(`Initializing Phase 1 Discovery [Mode: ${captureType.toUpperCase()}]...`, "text-pink-400 font-bold");
+        fetch(`/cases/${caseId}/capture`, { 
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ capture_type: captureType })
+        })
+        .then(r => r.json())
+        .then(data => {
+            console.log("Started discovery", data);
+        });
+    }
+
+    function startTargetedCapture(caseId, entryId) {
+        appendLog(`Initializing Deep Capture for ID ${entryId}...`, "text-amber-300");
+        fetch(`/cases/${caseId}/entries/${entryId}/capture_targeted`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                console.log("Started capture", data);
+            });
+    }
+
+    function startBatchCapture(mode) {
+        let payload = { mode: mode };
+        if (mode === 'keywords') {
+            const kwInput = document.getElementById('batchKeywords');
+            if (kwInput && kwInput.value.trim() !== "") {
+                payload.keywords = kwInput.value.trim();
+            } else {
+                alert("Please enter keywords to capture.");
+                return;
             }
-        };
+        }
+        appendLog(`Initializing Batch Capture (${mode.toUpperCase()})...`, "text-amber-300 font-bold");
+        fetch(`/cases/${caseId}/capture_batch`, { 
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            console.log("Started batch capture", data);
+        });
+    }
 
-        // Trigger API
-        fetch(`/cases/${caseId}/capture`, { method: 'POST' })
-            .then(res => res.json())
+    function toggleReport(entryId, isChecked) {
+        fetch(`/cases/${caseId}/entries/${entryId}/toggle_report`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ include: isChecked })
+        }).then(res => res.json()).then(data => {
+            console.log("Toggled", data);
+        });
+    }
+
+    function loadVisualData() {
+        fetch(`/cases/${caseId}/visual_data`)
+            .then(r => r.json())
             .then(data => {
-                if(data.error) {
-                    alert(data.error);
+                // Initialize Mind Map
+                const container = document.getElementById('mindmap');
+                const graphData = {
+                    nodes: new vis.DataSet(data.nodes),
+                    edges: new vis.DataSet(data.edges)
+                };
+                const options = {
+                    nodes: { font: { size: 14 } },
+                    edges: { width: 2, color: { inherit: 'from' } },
+                    physics: { barnesHut: { springLength: 150 } }
+                };
+                if (!network) {
+                    network = new vis.Network(container, graphData, options);
+                    network.on("click", function (params) {
+                        if (params.nodes.length > 0) {
+                            const nodeId = params.nodes[0];
+                            if (nodeId.startsWith('user_') && nodeId !== 'user_{{ case.target_username }}') {
+                                const nodeData = graphData.nodes.get(nodeId);
+                                const eventId = nodeData.latest_event_id;
+                                
+                                if (nodeData.status !== 'captured') {
+                                    startTargetedCapture(caseId, eventId);
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    network.setData(graphData);
                 }
+
+                // Initialize Chart.js
+                const ctx = document.getElementById('engagementChart').getContext('2d');
+                if (chart) chart.destroy();
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.chart_data.labels,
+                        datasets: [{
+                            label: 'Interaction Volume',
+                            data: data.chart_data.lengths,
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                            borderColor: 'rgb(59, 130, 246)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
             });
     }
 
-    function toggleReport(entryId) {
-        fetch(`/cases/${caseId}/entries/${entryId}/toggle_report`, { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                if(data.status !== "success") {
-                    alert("Failed to update report status.");
-                }
-            });
-    }
+    // Load data on page load
+    window.onload = () => {
+        loadVisualData();
+    };
 </script>
 {% endblock %}

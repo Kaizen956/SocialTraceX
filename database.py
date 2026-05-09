@@ -49,7 +49,7 @@ class Case(Base):
     profile_bio = Column(Text, default="")
     
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    entries = relationship("Entry", backref="case", cascade="all, delete-orphan")
+    events = relationship("Event", backref="case", cascade="all, delete-orphan")
 
     @property
     def keyword_list(self):
@@ -57,21 +57,24 @@ class Case(Base):
             return []
         return [k.strip() for k in self.keywords.split(",") if k.strip()]
 
-# ── ENTRIES ──────────────────────────────────────────────────────────────────
-class Entry(Base):
-    __tablename__ = "entries"
+# ── EVENTS ──────────────────────────────────────────────────────────────────
+class Event(Base):
+    __tablename__ = "events"
     id = Column(Integer, primary_key=True, index=True)
     case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
     
-    entry_type = Column(String(20), default="post")
-    content = Column(Text, default="")
-    author = Column(String(100), default="")
-    post_timestamp = Column(String(50), default="")
-    post_url = Column(String(500), default="")
+    status = Column(String(20), default="discovered") # 'discovered' or 'captured'
+    event_type = Column(String(20), default="dm") # 'dm', 'post'
     
-    likes = Column(Integer, default=0)
-    reposts = Column(Integer, default=0)
-    replies_count = Column(Integer, default=0)
+    from_user = Column(String(100), default="")
+    to_user = Column(String(100), default="")
+    timestamp = Column(String(50), default="")
+    length = Column(Integer, default=0)
+    contains_media = Column(Boolean, default=False)
+    
+    # Optional metadata or parsed content
+    content = Column(Text, default="")
+    profile_pic_url = Column(String(500), default="")
     
     screenshot_path = Column(String(500), default="")
     screenshot_hash = Column(String(64), default="")  # SHA-256 for evidence integrity

@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session
 import asyncio
 import os
 
-from database import Base, engine, get_db, User, Case, Entry, AuditLog
+from database import Base, engine, get_db, User, Case, Event, AuditLog
 from auth import verify_password, get_password_hash, get_current_user, get_current_admin, get_current_active_user
-from scraper import capture_flow
+from scraper import capture_flow, capture_flow_batch
+from pydantic import BaseModel
 import uvicorn
 from contextlib import asynccontextmanager
 import sys
@@ -98,7 +99,7 @@ def logout(request: Request):
 def dashboard(request: Request, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     cases = db.query(Case).order_by(Case.created_at.desc()).all()
     active_cases = db.query(Case).filter(Case.status == 'active').count()
-    total_entries = db.query(Entry).count()
+    total_entries = db.query(Event).count()
     return templates.TemplateResponse(request=request, name="dashboard.html", context={
         "request": request, "user": user, "cases": cases,
         "active_cases": active_cases, "total_entries": total_entries
@@ -108,14 +109,12 @@ def dashboard(request: Request, user: User = Depends(get_current_active_user), d
 def create_case(
     request: Request, 
     title: str = Form(...), target_username: str = Form(...), platform: str = Form(...),
-    description: str = Form(""), keywords: str = Form(""), 
-    capture_type: str = Form("posts"), max_posts: int = Form(10),
+    description: str = Form(""), capture_type: str = Form("posts"), max_posts: int = Form(10),
     user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     case = Case(
         title=title, target_username=target_username.lstrip('@'), platform=platform,
-        description=description, keywords=keywords, 
-        capture_type=capture_type, max_posts=max_posts,
+        description=description, capture_type=capture_type, max_posts=max_posts,
         created_by=user.id
     )
     db.add(case)
@@ -128,25 +127,157 @@ def view_case(request: Request, case_id: int, user: User = Depends(get_current_a
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
-    entries = db.query(Entry).filter(Entry.case_id == case_id).order_by(Entry.id.desc()).all()
+    entries = db.query(Event).filter(Event.case_id == case_id).order_by(Event.id.desc()).all()
     return templates.TemplateResponse(request=request, name="case_detail.html", context={"request": request, "user": user, "case": case, "entries": entries})
 
+class DiscoveryRequest(BaseModel):
+    capture_type: str = None
+
 @app.post("/cases/{case_id}/capture")
-async def start_capture(case_id: int, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def start_capture(case_id: int, request: DiscoveryRequest = None, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     case = db.query(Case).filter(Case.id == case_id).first()
-    if not case or case.status != 'active':
-        return {"error": "Case not active or found"}
-    
-    # Run the playwright scraper in the background using asyncio.create_task
-    # We pass the broadcast_log method to update websockets
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+        
+    if request and request.capture_type:
+        case.capture_type = request.capture_type
+        db.commit()
+
+    # Fire Phase A scraper in background
     asyncio.create_task(capture_flow(case_id, user.id, manager.broadcast_log))
     return {"status": "started"}
 
+@app.post("/cases/{case_id}/entries/{entry_id}/capture_targeted")
+async def start_targeted_capture(case_id: int, entry_id: int, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    entry = db.query(Event).filter(Event.id == entry_id, Event.case_id == case_id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Event not found")
+        
+    # Fire Phase B scraper for just this event
+    asyncio.create_task(capture_flow(case_id, user.id, manager.broadcast_log, entry_id=entry_id))
+    return {"status": "started"}
+
+class BatchCaptureRequest(BaseModel):
+    mode: str
+    keywords: str = None
+
+@app.post("/cases/{case_id}/capture_batch")
+async def start_batch_capture(case_id: int, request: BatchCaptureRequest, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+        
+    events = db.query(Event).filter(Event.case_id == case_id, Event.status == 'discovered').all()
+    
+    target_ids = []
+    if request.mode == 'all':
+        target_ids = [e.id for e in events]
+    elif request.mode == 'keywords':
+        kw_list = [k.strip() for k in request.keywords.split(",") if k.strip()] if request.keywords else []
+        for e in events:
+            if kw_list and e.content:
+                if any(kw.lower() in e.content.lower() for kw in kw_list):
+                    target_ids.append(e.id)
+                    
+    if not target_ids:
+        return {"status": "no targets found"}
+        
+    asyncio.create_task(capture_flow_batch(case_id, user.id, manager.broadcast_log, target_ids))
+    return {"status": "started", "targets": len(target_ids)}
+
+@app.get("/cases/{case_id}/visual_data")
+def get_visual_data(case_id: int, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    case = db.query(Case).get(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+        
+    events = db.query(Event).filter(Event.case_id == case_id).all()
+    
+    # We want to build a graph of Accounts
+    # Target user is the center
+    target_node_id = f"user_{case.target_username}"
+    
+    nodes_dict = {
+        target_node_id: {
+            "id": target_node_id, 
+            "label": f"@{case.target_username}", 
+            "shape": "image", 
+            "image": "https://cdn-icons-png.flaticon.com/512/149/149071.png", 
+            "size": 40
+        }
+    }
+    
+    edges_dict = {}
+    
+    user_interaction_volume = {} # For the chart
+    
+    for e in events:
+        # Determine the "other" person
+        other_user = e.to_user if e.from_user == case.target_username else e.from_user
+        if not other_user: continue
+        
+        other_node_id = f"user_{other_user}"
+        
+        if other_node_id not in nodes_dict:
+            pic_url = e.profile_pic_url if e.profile_pic_url else "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+            nodes_dict[other_node_id] = {
+                "id": other_node_id,
+                "label": f"@{other_user}",
+                "shape": "image",
+                "image": pic_url,
+                "size": 25,
+                # Add event_id to the node data so frontend can trigger capture based on the latest interaction
+                "latest_event_id": e.id,
+                "status": e.status
+            }
+        else:
+            # Update status if captured
+            if e.status == 'captured':
+                nodes_dict[other_node_id]["status"] = 'captured'
+            # Keep latest event_id
+            nodes_dict[other_node_id]["latest_event_id"] = e.id
+            
+        # Add Edge
+        edge_id = f"{target_node_id}-{other_node_id}"
+        if edge_id not in edges_dict:
+            edges_dict[edge_id] = {"from": target_node_id, "to": other_node_id, "width": 1}
+        else:
+            edges_dict[edge_id]["width"] += 1 # Thicker edge for more interactions
+            
+        # Accumulate volume for chart
+        if other_user not in user_interaction_volume:
+            user_interaction_volume[other_user] = 0
+        user_interaction_volume[other_user] += (e.length or 1)
+        
+    nodes = list(nodes_dict.values())
+    
+    # Highlight captured nodes with a border if possible, or adjust size
+    for n in nodes:
+        if n.get("status") == 'captured':
+            n["borderWidth"] = 4
+            n["color"] = {"border": "#10b981"}
+    
+    edges = list(edges_dict.values())
+    
+    # Sort chart data by volume
+    sorted_users = sorted(user_interaction_volume.items(), key=lambda x: x[1], reverse=True)[:10]
+    chart_labels = [f"@{u[0]}" for u in sorted_users]
+    chart_lengths = [u[1] for u in sorted_users]
+
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "chart_data": {
+            "labels": chart_labels,
+            "lengths": chart_lengths
+        }
+    }
+
 @app.post("/cases/{case_id}/entries/{entry_id}/toggle_report")
 def toggle_report(case_id: int, entry_id: int, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    entry = db.query(Entry).filter(Entry.id == entry_id, Entry.case_id == case_id).first()
+    entry = db.query(Event).filter(Event.id == entry_id, Event.case_id == case_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise HTTPException(status_code=404, detail="Event not found")
     
     entry.include_in_report = not entry.include_in_report
     db.commit()
@@ -158,7 +289,7 @@ def generate_report(request: Request, case_id: int, user: User = Depends(get_cur
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     
-    included_entries = db.query(Entry).filter(Entry.case_id == case_id, Entry.include_in_report == True).order_by(Entry.id.desc()).all()
+    included_entries = db.query(Event).filter(Event.case_id == case_id, Event.status == 'captured').order_by(Event.id.desc()).all()
     return templates.TemplateResponse(request=request, name="report.html", context={"request": request, "user": user, "case": case, "entries": included_entries})
 
 @app.websocket("/ws/case/{case_id}/logs")

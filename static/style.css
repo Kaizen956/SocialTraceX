@@ -1,11 +1,11 @@
 :root {
   --bg-dark: #0f172a;
   --bg-card: rgba(30, 41, 59, 0.7);
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
+  --accent: rgba(168, 85, 247, 0.5);
+  --accent-hover: rgba(168, 85, 247, 0.8);
   --text-main: #f8fafc;
   --text-dim: #94a3b8;
-  --border: rgba(255, 255, 255, 0.1);
+  --border: rgba(168, 85, 247, 0.3);
   --danger: #ef4444;
   --success: #10b981;
 }
@@ -71,36 +71,69 @@ body {
 .btn {
   background: var(--accent);
   color: white;
-  border: none;
+  border: 1px solid rgba(168, 85, 247, 0.4);
   padding: 10px 20px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   display: inline-block;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
 }
 
 .btn:hover {
   background: var(--accent-hover);
-  transform: scale(1.02);
+  border-color: rgba(168, 85, 247, 0.8);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 30px rgba(168, 85, 247, 0.3);
+}
+
+/* Global Clickable Elements Styling */
+a, button, [onclick], .clickable-text {
+  border: 1px solid rgba(168, 85, 247, 0.3) !important;
+  border-radius: 6px;
+  padding: 8px 16px;
+  transition: all 0.3s ease-in-out !important;
+}
+
+a:hover, button:hover, [onclick]:hover, .clickable-text:hover {
+  border-color: rgba(168, 85, 247, 0.8) !important;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.5), inset 0 0 10px rgba(168, 85, 247, 0.2) !important;
+  background-color: rgba(168, 85, 247, 0.1) !important;
+}
+
+/* Exempt specific elements from global border if necessary */
+.nav-brand {
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+.nav-brand:hover {
+  border: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
 }
 
 .btn-danger {
   background: var(--danger);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
 }
 
 .btn-danger:hover {
   background: #dc2626;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.4);
 }
 
 .btn-outline {
   background: transparent;
   border: 1px solid var(--border);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
 }
 
 .btn-outline:hover {
   background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
 }
 
 .form-group {

@@ -10,7 +10,7 @@
 
 <div class="grid">
     <!-- Create New Case Card -->
-    <div class="glass-card" style="border-style: dashed; background: transparent; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer;" onclick="document.getElementById('new-case-form').style.display='block'; this.style.display='none';">
+    <div class="glass-card border border-purple-500/40 hover:border-purple-400/80" style="border-style: dashed; background: transparent; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer;" onclick="document.getElementById('new-case-form').style.display='block'; this.style.display='none';">
         <div style="font-size: 2rem; color: var(--accent);">+</div>
         <h3 style="margin-top: 8px;">New Investigation</h3>
     </div>
@@ -45,10 +45,7 @@
                 <label class="form-label">Max Posts to Analyze</label>
                 <input type="number" name="max_posts" class="form-input" value="10" min="1" max="100">
             </div>
-            <div class="form-group">
-                <label class="form-label">Keywords (comma separated)</label>
-                <input type="text" name="keywords" class="form-input" placeholder="drugs, illegal, weapon">
-            </div>
+
             <button type="submit" class="btn" style="width: 100%;">Create Case</button>
         </form>
     </div>
