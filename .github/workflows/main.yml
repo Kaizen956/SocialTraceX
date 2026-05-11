@@ -1,0 +1,39 @@
+name: SocialTraceX CI Pipeline
+
+on:
+  push:
+    branches:
+      - stable
+      - master
+
+  pull_request:
+    branches:
+      - stable
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install Playwright Browsers
+      run: |
+        playwright install --with-deps
+
+    - name: Run Basic Validation
+      run: |
+        python -m compileall .
