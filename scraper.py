@@ -327,6 +327,28 @@ class InstagramScraper(BaseScraper):
                     to_user = text_content[0] if len(text_content) > 0 else f"unknown_user_{i}"
                     preview = text_content[1] if len(text_content) > 1 else ""
                     
+                    try:
+                        img_el = thread.query_selector('img')
+                        profile_pic_url = img_el.get_attribute('src') if img_el else f"https://api.dicebear.com/7.x/pixel-art/svg?seed={to_user}"
+                    except Exception:
+                        profile_pic_url = f"https://api.dicebear.com/7.x/pixel-art/svg?seed={to_user}"
+                    
+                    self.log(f"Capturing chat with @{to_user}...")
+                    try:
+                        thread.click()
+                        self.human_delay(2.0, 4.0)
+                        
+                        fname = f"case{self.case_id}_dm_{to_user}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{i}.png"
+                        fpath = str(SCREENSHOT_DIR / fname)
+                        page.screenshot(path=fpath, full_page=False)
+                        file_hash = self.calculate_sha256(fpath)
+                        status = 'captured'
+                    except Exception as e:
+                        self.log(f"Error capturing chat with @{to_user}: {e}")
+                        fname = ""
+                        file_hash = ""
+                        status = 'discovered'
+                    
                     length_score = random.randint(10, 500)
                     
                     item = {
@@ -337,12 +359,14 @@ class InstagramScraper(BaseScraper):
                         'length': length_score,
                         'contains_media': "Sent an attachment" in preview,
                         'content': preview,
-                        'status': 'discovered',
-                        'profile_pic_url': f"https://api.dicebear.com/7.x/pixel-art/svg?seed={to_user}"
+                        'status': status,
+                        'screenshot': fname,
+                        'screenshot_hash': file_hash,
+                        'profile_pic_url': profile_pic_url,
+                        'include_in_report': True if status == 'captured' else False
                     }
                     self.save_event(item)
                     captured += 1
-                    self.human_delay(0.5, 1.5)
             else:
                 self.log("DOM extraction yielded 0. Injecting fallback mock data to test pipeline...")
                 mock_users = ["johndoe", "janedoe", "suspect2", "accomplice_99", "burner_acc"]

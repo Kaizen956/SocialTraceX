@@ -109,12 +109,12 @@ def dashboard(request: Request, user: User = Depends(get_current_active_user), d
 def create_case(
     request: Request, 
     title: str = Form(...), target_username: str = Form(...), platform: str = Form(...),
-    description: str = Form(""), capture_type: str = Form("posts"), max_posts: int = Form(10),
+    description: str = Form(""),
     user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     case = Case(
         title=title, target_username=target_username.lstrip('@'), platform=platform,
-        description=description, capture_type=capture_type, max_posts=max_posts,
+        description=description, capture_type="posts", max_posts=10,
         created_by=user.id
     )
     db.add(case)
@@ -132,6 +132,7 @@ def view_case(request: Request, case_id: int, user: User = Depends(get_current_a
 
 class DiscoveryRequest(BaseModel):
     capture_type: str = None
+    max_posts: int = 10
 
 @app.post("/cases/{case_id}/capture")
 async def start_capture(case_id: int, request: DiscoveryRequest = None, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
@@ -139,8 +140,11 @@ async def start_capture(case_id: int, request: DiscoveryRequest = None, user: Us
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
         
-    if request and request.capture_type:
-        case.capture_type = request.capture_type
+    if request:
+        if request.capture_type:
+            case.capture_type = request.capture_type
+        if request.max_posts is not None:
+            case.max_posts = request.max_posts
         db.commit()
 
     # Fire Phase A scraper in background

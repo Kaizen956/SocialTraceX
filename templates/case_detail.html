@@ -227,11 +227,17 @@
 
     function executeDiscovery(captureType) {
         hideDiscoveryModal();
+        let maxPosts = 10;
+        if (captureType === 'posts') {
+            const val = prompt("How many posts would you like to capture? (Enter 0 for none)", "10");
+            if (val === null) return; // User cancelled
+            maxPosts = parseInt(val, 10) || 0;
+        }
         appendLog(`Initializing Phase 1 Discovery [Mode: ${captureType.toUpperCase()}]...`, "text-pink-400 font-bold");
         fetch(`/cases/${caseId}/capture`, { 
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ capture_type: captureType })
+            body: JSON.stringify({ capture_type: captureType, max_posts: maxPosts })
         })
         .then(r => r.json())
         .then(data => {
