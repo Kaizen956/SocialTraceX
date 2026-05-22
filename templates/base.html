@@ -1,153 +1,381 @@
 <!-- base.html -->
 <!DOCTYPE html>
 <html lang="en" class="dark">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SocialtrackX - Intelligence Platform</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/static/style.css">
-    <style>
-        /* CSS Animations from Figma */
-        @keyframes float-1 {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          25% { transform: translate(20px, -30px) rotate(5deg); }
-          50% { transform: translate(-15px, -50px) rotate(-3deg); }
-          75% { transform: translate(30px, -25px) rotate(4deg); }
-        }
-        @keyframes float-2 {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          25% { transform: translate(-25px, 35px) rotate(-4deg); }
-          50% { transform: translate(20px, 60px) rotate(3deg); }
-          75% { transform: translate(-30px, 40px) rotate(-5deg); }
-        }
-        @keyframes float-3 {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          25% { transform: translate(30px, -20px) rotate(6deg); }
-          50% { transform: translate(-20px, -45px) rotate(-4deg); }
-          75% { transform: translate(25px, -30px) rotate(3deg); }
-        }
-        @keyframes float-4 {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          25% { transform: translate(-20px, 25px) rotate(-3deg); }
-          50% { transform: translate(25px, 45px) rotate(5deg); }
-          75% { transform: translate(-15px, 30px) rotate(-4deg); }
-        }
-        @keyframes float-5 {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          25% { transform: translate(25px, -35px) rotate(4deg); }
-          50% { transform: translate(-30px, -55px) rotate(-6deg); }
-          75% { transform: translate(20px, -40px) rotate(5deg); }
-        }
-        @keyframes pulse-glow-1 {
-          0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px rgba(168, 85, 247, 0.1)); }
-          50% { opacity: 1; filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.6)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.3)); }
-        }
-        @keyframes pulse-glow-2 {
-          0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px rgba(147, 51, 234, 0.1)); }
-          50% { opacity: 1; filter: drop-shadow(0 0 25px rgba(147, 51, 234, 0.6)) drop-shadow(0 0 45px rgba(147, 51, 234, 0.3)); }
-        }
-        @keyframes pulse-glow-3 {
-          0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px rgba(192, 132, 252, 0.1)); }
-          50% { opacity: 1; filter: drop-shadow(0 0 22px rgba(192, 132, 252, 0.6)) drop-shadow(0 0 42px rgba(192, 132, 252, 0.3)); }
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #000;
-            color: #e9d5ff;
-        }
-        .orbitron { font-family: 'Orbitron', sans-serif; }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(168, 85, 247, 0.2);
-            box-shadow: 0 0 20px rgba(168, 85, 247, 0.1);
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(168, 85, 247, 0.2);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 24px;
-        }
-        .form-group { margin-bottom: 16px; }
-        .form-label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: rgba(233, 213, 255, 0.9); }
-        .form-input { 
-            width: 100%; padding: 10px 16px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); 
-            border: 1px solid rgba(168, 85, 247, 0.2); color: white; transition: all 0.2s;
-        }
-        .form-input option { background-color: #1a0b2e; color: #e9d5ff; }
-        .form-input:focus { outline: none; border-color: rgba(168, 85, 247, 0.7); background: rgba(255, 255, 255, 0.1); }
-        .badge-active { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .badge-closed { background: rgba(100, 116, 139, 0.2); color: #cbd5e1; border: 1px solid rgba(100, 116, 139, 0.3); }
-        
-        /* Fallback for components that still use Bootstrap classes */
-        .card { @apply bg-white/5 border border-purple-400/20 rounded-xl overflow-hidden backdrop-blur-md; }
-        .card-header { @apply bg-white/5 border-b border-purple-400/20 px-4 py-3 font-semibold text-purple-200; }
-        .card-body { @apply p-4; }
-        .btn { @apply px-4 py-2 rounded-lg font-medium transition-all border border-purple-500/40 hover:border-purple-400/80; }
-        .clickable-text { @apply border border-purple-500/30 px-5 py-2 rounded-lg hover:text-purple-100 hover:bg-purple-500/10 hover:border-purple-400/60 transition-all duration-300 inline-block; }
-        .btn-primary { @apply bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.4)]; }
-        .btn-success { @apply bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/50 shadow-[0_0_15px_rgba(16,185,129,0.4)]; }
-        .btn-warning { @apply bg-amber-600 hover:bg-amber-500 text-white border border-amber-400/50; }
-        .btn-danger { @apply bg-rose-600 hover:bg-rose-500 text-white border border-rose-400/50; }
-        .btn-outline { @apply border border-purple-500 hover:bg-purple-500/20 text-purple-300; }
-        .btn-outline-light { @apply border border-white/20 hover:bg-white/10 text-purple-100; }
-        .btn-outline-primary { @apply border border-purple-500 hover:bg-purple-500/20 text-purple-300; }
-        .form-control { @apply w-full bg-white/5 border border-purple-400/30 rounded px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-400; }
-        .table { @apply w-full text-left text-sm text-purple-200 border-collapse; }
-        .table th { @apply bg-purple-900/40 p-3 border-b border-purple-400/30; }
-        .table td { @apply p-3 border-b border-purple-400/10; }
-        .table-striped tbody tr:nth-child(odd) { @apply bg-white/[0.02]; }
-        .table-hover tbody tr:hover { @apply bg-purple-500/10; }
-        .table-warning { @apply bg-amber-900/30 !important; }
-        .badge { @apply px-2 py-1 rounded text-xs font-semibold; }
-        .bg-success { @apply bg-emerald-500/20 text-emerald-300 border border-emerald-500/30; }
-        .bg-secondary { @apply bg-slate-500/20 text-slate-300 border border-slate-500/30; }
-        .bg-danger { @apply bg-rose-500/20 text-rose-300 border border-rose-500/30; }
-        .text-muted { @apply text-purple-300/50; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocialtrackX - Intelligence Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    /* CSS Animations from Figma */
+    @keyframes float-1 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      25% {
+        transform: translate(20px, -30px) rotate(5deg);
+      }
+
+      50% {
+        transform: translate(-15px, -50px) rotate(-3deg);
+      }
+
+      75% {
+        transform: translate(30px, -25px) rotate(4deg);
+      }
+    }
+
+    @keyframes float-2 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      25% {
+        transform: translate(-25px, 35px) rotate(-4deg);
+      }
+
+      50% {
+        transform: translate(20px, 60px) rotate(3deg);
+      }
+
+      75% {
+        transform: translate(-30px, 40px) rotate(-5deg);
+      }
+    }
+
+    @keyframes float-3 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      25% {
+        transform: translate(30px, -20px) rotate(6deg);
+      }
+
+      50% {
+        transform: translate(-20px, -45px) rotate(-4deg);
+      }
+
+      75% {
+        transform: translate(25px, -30px) rotate(3deg);
+      }
+    }
+
+    @keyframes float-4 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      25% {
+        transform: translate(-20px, 25px) rotate(-3deg);
+      }
+
+      50% {
+        transform: translate(25px, 45px) rotate(5deg);
+      }
+
+      75% {
+        transform: translate(-15px, 30px) rotate(-4deg);
+      }
+    }
+
+    @keyframes float-5 {
+
+      0%,
+      100% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      25% {
+        transform: translate(25px, -35px) rotate(4deg);
+      }
+
+      50% {
+        transform: translate(-30px, -55px) rotate(-6deg);
+      }
+
+      75% {
+        transform: translate(20px, -40px) rotate(5deg);
+      }
+    }
+
+    @keyframes pulse-glow-1 {
+
+      0%,
+      100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 2px rgba(168, 85, 247, 0.1));
+      }
+
+      50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.6)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.3));
+      }
+    }
+
+    @keyframes pulse-glow-2 {
+
+      0%,
+      100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 2px rgba(147, 51, 234, 0.1));
+      }
+
+      50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 25px rgba(147, 51, 234, 0.6)) drop-shadow(0 0 45px rgba(147, 51, 234, 0.3));
+      }
+    }
+
+    @keyframes pulse-glow-3 {
+
+      0%,
+      100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 2px rgba(192, 132, 252, 0.1));
+      }
+
+      50% {
+        opacity: 1;
+        filter: drop-shadow(0 0 22px rgba(192, 132, 252, 0.6)) drop-shadow(0 0 42px rgba(192, 132, 252, 0.3));
+      }
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #000;
+      color: #e9d5ff;
+    }
+
+    .orbitron {
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.1);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      color: rgba(233, 213, 255, 0.9);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      color: white;
+      transition: all 0.2s;
+    }
+
+    .form-input option {
+      background-color: #1a0b2e;
+      color: #e9d5ff;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: rgba(168, 85, 247, 0.7);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .badge-active {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-closed {
+      background: rgba(100, 116, 139, 0.2);
+      color: #cbd5e1;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
+    /* Fallback for components that still use Bootstrap classes */
+    .card {
+      @apply bg-white/5 border border-purple-400/20 rounded-xl overflow-hidden backdrop-blur-md;
+    }
+
+    .card-header {
+      @apply bg-white/5 border-b border-purple-400/20 px-4 py-3 font-semibold text-purple-200;
+    }
+
+    .card-body {
+      @apply p-4;
+    }
+
+    .btn {
+      @apply px-4 py-2 rounded-lg font-medium transition-all border border-purple-500/40 hover:border-purple-400/80;
+    }
+
+    .clickable-text {
+      @apply border border-purple-500/30 px-5 py-2 rounded-lg hover:text-purple-100 hover:bg-purple-500/10 hover:border-purple-400/60 transition-all duration-300 inline-block;
+    }
+
+    .btn-primary {
+      @apply bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/50 shadow-[0_0_15px_rgba(168, 85, 247, 0.4)];
+    }
+
+    .btn-success {
+      @apply bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/50 shadow-[0_0_15px_rgba(16, 185, 129, 0.4)];
+    }
+
+    .btn-warning {
+      @apply bg-amber-600 hover:bg-amber-500 text-white border border-amber-400/50;
+    }
+
+    .btn-danger {
+      @apply bg-rose-600 hover:bg-rose-500 text-white border border-rose-400/50;
+    }
+
+    .btn-outline {
+      @apply border border-purple-500 hover:bg-purple-500/20 text-purple-300;
+    }
+
+    .btn-outline-light {
+      @apply border border-white/20 hover:bg-white/10 text-purple-100;
+    }
+
+    .btn-outline-primary {
+      @apply border border-purple-500 hover:bg-purple-500/20 text-purple-300;
+    }
+
+    .form-control {
+      @apply w-full bg-white/5 border border-purple-400/30 rounded px-3 py-2 text-purple-100 focus:outline-none focus:border-purple-400;
+    }
+
+    .table {
+      @apply w-full text-left text-sm text-purple-200 border-collapse;
+    }
+
+    .table th {
+      @apply bg-purple-900/40 p-3 border-b border-purple-400/30;
+    }
+
+    .table td {
+      @apply p-3 border-b border-purple-400/10;
+    }
+
+    .table-striped tbody tr:nth-child(odd) {
+      @apply bg-white/[0.02];
+    }
+
+    .table-hover tbody tr:hover {
+      @apply bg-purple-500/10;
+    }
+
+    .table-warning {
+      @apply bg-amber-900/30 !important;
+    }
+
+    .badge {
+      @apply px-2 py-1 rounded text-xs font-semibold;
+    }
+
+    .bg-success {
+      @apply bg-emerald-500/20 text-emerald-300 border border-emerald-500/30;
+    }
+
+    .bg-secondary {
+      @apply bg-slate-500/20 text-slate-300 border border-slate-500/30;
+    }
+
+    .bg-danger {
+      @apply bg-rose-500/20 text-rose-300 border border-rose-500/30;
+    }
+
+    .text-muted {
+      @apply text-purple-300/50;
+    }
+  </style>
 </head>
-<body class="min-h-screen relative overflow-x-hidden bg-gradient-to-br from-black via-purple-950 to-black text-purple-200">
-    
-    <!-- Floating Triangles Background (Global) -->
-    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div class="absolute w-64 h-64 border border-white/10 bg-gradient-to-br from-purple-500/5 to-transparent backdrop-blur-sm"
-            style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); top: 10%; left: 15%; animation: float-1 20s ease-in-out infinite, pulse-glow-1 6s ease-in-out infinite"></div>
-        <div class="absolute w-48 h-48 border border-purple-400/10 bg-gradient-to-br from-purple-600/5 to-transparent backdrop-blur-sm"
-            style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); top: 60%; right: 20%; animation: float-2 25s ease-in-out infinite, pulse-glow-2 7s ease-in-out infinite"></div>
-        <div class="absolute w-56 h-56 border border-purple-300/10 bg-gradient-to-br from-purple-400/5 to-transparent backdrop-blur-sm"
-            style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); bottom: 15%; left: 25%; animation: float-3 22s ease-in-out infinite, pulse-glow-3 8s ease-in-out infinite"></div>
-        <div class="absolute w-40 h-40 border border-white/10 bg-gradient-to-br from-purple-500/5 to-transparent backdrop-blur-sm"
-            style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); top: 35%; right: 10%; animation: float-4 18s ease-in-out infinite, pulse-glow-1 6.5s ease-in-out infinite"></div>
-    </div>
 
-    <!-- Navbar -->
-    {% if request.session.get("user_id") %}
-    <nav class="relative z-50 glass-panel border-b border-purple-500/30 px-6 py-4 flex justify-between items-center mb-8">
-        <a href="/dashboard" class="text-2xl font-bold orbitron bg-gradient-to-r from-purple-400 via-pink-300 to-purple-400 bg-clip-text text-transparent hover:scale-105 transition-transform" style="filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5))">SocialtrackX</a>
-        <div class="flex items-center space-x-6 text-sm font-medium">
-            <span class="text-purple-300/60">Welcome, {{ user.name }}</span>
-            <a href="/dashboard" class="clickable-text">Dashboard</a>
-            {% if request.session.get("role") == "admin" %}
-            <a href="/admin" class="clickable-text">Admin Panel</a>
-            {% endif %}
-            <a href="/logout" class="clickable-text !text-pink-400 !border-pink-500/30 hover:!text-pink-300 hover:!bg-pink-500/10 hover:!border-pink-400/60">Logout</a>
-        </div>
-    </nav>
-    {% endif %}
+<body
+  class="min-h-screen relative overflow-x-hidden bg-gradient-to-br from-black via-purple-950 to-black text-purple-200">
 
-    <div class="container mx-auto px-4 relative z-10 pb-12">
-        {% block content %}{% endblock %}
+  <!-- Floating Triangles Background (Global) -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div
+      class="absolute w-64 h-64 border border-white/10 bg-gradient-to-br from-purple-500/5 to-transparent backdrop-blur-sm"
+      style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); top: 10%; left: 15%; animation: float-1 20s ease-in-out infinite, pulse-glow-1 6s ease-in-out infinite">
     </div>
+    <div
+      class="absolute w-48 h-48 border border-purple-400/10 bg-gradient-to-br from-purple-600/5 to-transparent backdrop-blur-sm"
+      style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); top: 60%; right: 20%; animation: float-2 25s ease-in-out infinite, pulse-glow-2 7s ease-in-out infinite">
+    </div>
+    <div
+      class="absolute w-56 h-56 border border-purple-300/10 bg-gradient-to-br from-purple-400/5 to-transparent backdrop-blur-sm"
+      style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); bottom: 15%; left: 25%; animation: float-3 22s ease-in-out infinite, pulse-glow-3 8s ease-in-out infinite">
+    </div>
+    <div
+      class="absolute w-40 h-40 border border-white/10 bg-gradient-to-br from-purple-500/5 to-transparent backdrop-blur-sm"
+      style="clip-path: polygon(50% 0%, 100% 100%, 0% 100%); top: 35%; right: 10%; animation: float-4 18s ease-in-out infinite, pulse-glow-1 6.5s ease-in-out infinite">
+    </div>
+  </div>
+
+  <!-- Navbar -->
+  {% if request.session.get("user_id") %}
+  <nav class="relative z-50 glass-panel border border-purple-500/30 px-6 py-4 flex justify-between items-center mb-8">
+    <a href="/dashboard"
+      class="text-2xl font-bold orbitron bg-gradient-to-r from-purple-400 via-pink-300 to-purple-400 bg-clip-text text-transparent hover:scale-105 transition-transform"
+      style="filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5))">SocialtraceX</a>
+    <div class="flex items-center space-x-6 text-sm font-medium">
+      <span class="text-purple-300/60">Welcome, {{ user.name }}</span>
+      <a href="/dashboard" class="clickable-text">Dashboard</a>
+      {% if request.session.get("role") == "admin" %}
+      <a href="/admin" class="clickable-text">Admin Panel</a>
+      {% endif %}
+      <a href="/logout"
+        class="clickable-text !text-pink-400 !border-pink-500/30 hover:!text-pink-300 hover:!bg-pink-500/10 hover:!border-pink-400/60">Logout</a>
+    </div>
+  </nav>
+  {% endif %}
+
+  <div class="container mx-auto px-4 relative z-10 pb-12">
+    {% block content %}{% endblock %}
+  </div>
 
 </body>
+
 </html>

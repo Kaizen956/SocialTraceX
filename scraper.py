@@ -15,6 +15,12 @@ SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR = Path(os.path.join(os.path.dirname(__file__), 'data'))
 STATE_FILE = str(DATA_DIR / 'state.json')
 
+THREAT_WORDS = ["kill", "attack", "destroy", "bomb", "weapon", "shoot", "murder"]
+SCAM_WORDS = ["crypto", "investment", "guaranteed", "returns", "free money", "giveaway", "wallet", "urgent"]
+FRAUD_TERMS = ["bank", "transfer", "account", "password", "social security", "credit card", "wire"]
+VIOLENCE_TERMS = ["blood", "dead", "fight", "beat", "stab"]
+
+
 class BaseScraper:
     def __init__(self, case_id: int, user_id: int, send_log_func, main_loop):
         self.case_id = case_id
@@ -83,7 +89,10 @@ class BaseScraper:
                 status=item.get('status', 'discovered'),
                 screenshot_path=item.get('screenshot', ''),
                 screenshot_hash=item.get('screenshot_hash', ''),
-                include_in_report=item.get('include_in_report', False)
+                include_in_report=item.get('include_in_report', False),
+                risk_score=item.get('risk_score', 0),
+                matched_keywords=item.get('matched_keywords', ''),
+                flagged=item.get('risk_score', 0) > 0
             )
             db.add(event)
             
@@ -110,17 +119,51 @@ class BaseScraper:
     def human_delay(self, min_sec=1.5, max_sec=4.0):
         time.sleep(random.uniform(min_sec, max_sec))
 
+    def analyze_keywords(self, text: str) -> tuple[int, str]:
+        if not text:
+            return 0, ""
+        text_lower = text.lower()
+        score = 0
+        matches = []
+        for word in THREAT_WORDS:
+            if word in text_lower:
+                score += 25
+                matches.append(word)
+        for word in SCAM_WORDS:
+            if word in text_lower:
+                score += 20
+                matches.append(word)
+        for word in FRAUD_TERMS:
+            if word in text_lower:
+                score += 20
+                matches.append(word)
+        for word in VIOLENCE_TERMS:
+            if word in text_lower:
+                score += 15
+                matches.append(word)
+                
+        # Custom keywords from case
+        if hasattr(self, 'keywords') and self.keywords:
+            for word in self.keywords:
+                if word.lower() in text_lower:
+                    score += 30 # high weight for custom keywords
+                    matches.append(word)
+                    
+        return min(100, score), ",".join(set(matches))
+
 
 class InstagramScraper(BaseScraper):
     
     def extract_profile_stats(self, page):
         stats = {'followers': '?', 'following': '?', 'posts': '?', 'bio': ''}
         try:
+            page.wait_for_selector('header ul li', timeout=5000)
             items = page.query_selector_all('header ul li')
             if len(items) >= 3:
-                stats['posts'] = items[0].inner_text().split(' ')[0]
-                stats['followers'] = items[1].inner_text().split(' ')[0]
-                stats['following'] = items[2].inner_text().split(' ')[0]
+                # Use regex to strip non-numeric/k/m chars
+                stats['posts'] = re.sub(r'[^\dKkMm\.,]', '', items[0].inner_text())
+                stats['followers'] = re.sub(r'[^\dKkMm\.,]', '', items[1].inner_text())
+                stats['following'] = re.sub(r'[^\dKkMm\.,]', '', items[2].inner_text())
         except Exception: pass
         
         if stats['followers'] == '?':
@@ -130,6 +173,8 @@ class InstagramScraper(BaseScraper):
                     content = meta.get_attribute('content')
                     m_f = re.search(r'([\d,\.]+[KkMm]?)\s*Follow', content, re.I)
                     if m_f: stats['followers'] = m_f.group(1)
+                    m_p = re.search(r'([\d,\.]+[KkMm]?)\s*Post', content, re.I)
+                    if m_p: stats['posts'] = m_p.group(1)
             except Exception: pass
         self.update_profile(stats)
         self.log(f"Profile updated: {stats['followers']} followers.")
@@ -236,15 +281,27 @@ class InstagramScraper(BaseScraper):
                         page.screenshot(path=fpath, full_page=False)
                         file_hash = self.calculate_sha256(fpath)
                         
-                        # Try to get alt text
+                        # Try to get post description
                         text = f"Captured public post {i+1}."
                         try:
-                            img_el = page.query_selector('article img')
-                            if img_el:
-                                alt = img_el.get_attribute('alt')
-                                if alt:
-                                    text = alt
+                            # Try to extract the caption from h1
+                            h1_tags = page.query_selector_all('h1')
+                            for h1 in h1_tags:
+                                content = h1.inner_text().strip()
+                                if content and len(content) > 10:
+                                    text = content
+                                    break
+                            
+                            # Fallback to alt text if h1 not found or too short
+                            if text == f"Captured public post {i+1}.":
+                                img_el = page.query_selector('article img')
+                                if img_el:
+                                    alt = img_el.get_attribute('alt')
+                                    if alt:
+                                        text = alt
                         except: pass
+                        
+                        risk_score, matched_keywords = self.analyze_keywords(text)
                         
                         item = {
                             'type': 'post',
@@ -258,7 +315,9 @@ class InstagramScraper(BaseScraper):
                             'screenshot': fname,
                             'screenshot_hash': file_hash,
                             'profile_pic_url': f"https://api.dicebear.com/7.x/pixel-art/svg?seed={self.target_user}_{i}",
-                            'include_in_report': True
+                            'include_in_report': True,
+                            'risk_score': risk_score,
+                            'matched_keywords': matched_keywords
                         }
                         self.save_event(item)
                         captured += 1
@@ -288,6 +347,15 @@ class InstagramScraper(BaseScraper):
                     except Exception:
                         file_hash = ""
                     
+                    mock_captions = [
+                        f"Sample public post caption {i+1}.",
+                        "Just bought some crypto! Guaranteed returns in my wallet! #giveaway",
+                        "Looking to transfer from my bank account, dm me for details",
+                        "Such a beautiful day #blessed"
+                    ]
+                    text_content = mock_captions[i % len(mock_captions)]
+                    risk_score, matched_keywords = self.analyze_keywords(text_content)
+                    
                     item = {
                         'type': 'post',
                         'from_user': self.target_user,
@@ -295,11 +363,14 @@ class InstagramScraper(BaseScraper):
                         'timestamp': datetime.utcnow().isoformat(),
                         'length': length_score,
                         'contains_media': True,
-                        'content': f"Sample public post caption {i+1}.",
+                        'content': text_content,
                         'status': 'captured',
                         'screenshot': fname,
                         'screenshot_hash': file_hash,
-                        'profile_pic_url': f"https://api.dicebear.com/7.x/pixel-art/svg?seed={self.target_user}_{i}"
+                        'profile_pic_url': f"https://api.dicebear.com/7.x/pixel-art/svg?seed={self.target_user}_{i}",
+                        'risk_score': risk_score,
+                        'matched_keywords': matched_keywords,
+                        'include_in_report': True
                     }
                     self.save_event(item)
                     captured += 1

@@ -109,29 +109,64 @@
             </div>
         </div>
     </div>
+    {% else %}
+    <div class="col-span-12 md:col-span-9">
+        <div class="card h-full flex flex-col">
+            <div class="card-header flex justify-between items-center">
+                <span class="text-sm">Risk Score Timeline</span>
+                <button class="text-rose-300 hover:text-white transition-all border border-rose-500/30 px-2 py-1 rounded hover:bg-rose-500/10 hover:border-rose-400/60" onclick="loadVisualData()"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <div class="flex-grow flex items-center justify-center p-4 min-h-[300px]">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+    </div>
     {% endif %}
 </div>
 
-<div class="mb-6">
-    <h4 class="text-xl font-bold orbitron text-purple-200 mb-4 border-b border-purple-500/30 pb-2">Profile Statistics</h4>
-    <div class="glass-panel overflow-hidden rounded-xl border border-purple-500/30 shadow-lg shadow-purple-500/10">
-        <table class="w-full text-left text-purple-200">
-            <thead class="bg-purple-900/40 border-b border-purple-500/30">
-                <tr>
-                    <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Followers</th>
-                    <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Following</th>
-                    <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Total Posts</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr class="hover:bg-purple-800/20 transition-colors">
-                    <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_followers }}</td>
-                    <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_following }}</td>
-                    <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_posts }}</td>
-                </tr>
-            </tbody>
-        </table>
+<div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div>
+        <h4 class="text-xl font-bold orbitron text-purple-200 mb-4 border-b border-purple-500/30 pb-2">Profile Statistics</h4>
+        <div class="glass-panel overflow-hidden rounded-xl border border-purple-500/30 shadow-lg shadow-purple-500/10">
+            <table class="w-full text-left text-purple-200">
+                <thead class="bg-purple-900/40 border-b border-purple-500/30">
+                    <tr>
+                        <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Followers</th>
+                        <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Following</th>
+                        <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider">Total Posts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="hover:bg-purple-800/20 transition-colors">
+                        <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_followers }}</td>
+                        <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_following }}</td>
+                        <td class="p-3 font-mono text-purple-100 font-bold text-lg">{{ case.profile_posts }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
+    {% if case.capture_type == 'posts' %}
+    <div>
+        <h4 class="text-xl font-bold orbitron text-rose-300 mb-4 border-b border-rose-500/30 pb-2">Risk Indicators</h4>
+        <div class="glass-panel overflow-hidden rounded-xl border border-rose-500/30 shadow-lg shadow-rose-500/10 bg-rose-900/10">
+            <table class="w-full text-left text-rose-200">
+                <thead class="bg-rose-900/40 border-b border-rose-500/30">
+                    <tr>
+                        <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider text-rose-300">Flagged Posts</th>
+                        <th class="p-3 font-semibold orbitron uppercase text-sm tracking-wider text-rose-300">Avg Risk Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="hover:bg-rose-800/20 transition-colors">
+                        <td class="p-3 font-mono text-rose-100 font-bold text-lg">{{ total_flagged }}</td>
+                        <td class="p-3 font-mono text-rose-100 font-bold text-lg">{{ avg_risk_score }} / 100</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Captured Evidence Screenshots Gallery -->
@@ -154,8 +189,20 @@
                     <div class="p-4">
                         <div class="text-sm text-purple-200 font-semibold mb-1 flex justify-between">
                             <span>{{ entry.from_user }} &rarr; {{ entry.to_user }}</span>
-                            <i class="bi bi-check-circle-fill text-emerald-400" title="Included in Report"></i>
+                            <div class="flex space-x-2 items-center">
+                                {% if entry.risk_score and entry.risk_score > 0 %}
+                                    <span class="bg-rose-500/20 text-rose-300 border border-rose-500/50 px-2 py-0.5 rounded text-xs font-bold shadow-[0_0_10px_rgba(244,63,94,0.3)]">Risk: {{ entry.risk_score }}</span>
+                                {% endif %}
+                                <i class="bi bi-check-circle-fill text-emerald-400" title="Included in Report"></i>
+                            </div>
                         </div>
+                        {% if entry.matched_keywords %}
+                        <div class="mb-2 flex flex-wrap gap-1">
+                            {% for kw in entry.matched_keywords.split(',') %}
+                                <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider">{{ kw }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         <p class="text-xs text-purple-300/60 truncate mb-3">{{ entry.content or "No text content" }}</p>
                         <div class="text-xs text-emerald-400/80 mb-2 font-mono flex items-center space-x-1">
                             <i class="bi bi-clock-history"></i> 
@@ -228,16 +275,21 @@
     function executeDiscovery(captureType) {
         hideDiscoveryModal();
         let maxPosts = 10;
+        let keywords = null;
         if (captureType === 'posts') {
             const val = prompt("How many posts would you like to capture? (Enter 0 for none)", "10");
             if (val === null) return; // User cancelled
             maxPosts = parseInt(val, 10) || 0;
+            const kwVal = prompt("Enter optional keywords to filter/flag (comma separated):", "");
+            if (kwVal !== null && kwVal.trim() !== "") {
+                keywords = kwVal.trim();
+            }
         }
         appendLog(`Initializing Phase 1 Discovery [Mode: ${captureType.toUpperCase()}]...`, "text-pink-400 font-bold");
         fetch(`/cases/${caseId}/capture`, { 
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ capture_type: captureType, max_posts: maxPosts })
+            body: JSON.stringify({ capture_type: captureType, max_posts: maxPosts, keywords: keywords })
         })
         .then(r => r.json())
         .then(data => {
@@ -291,6 +343,7 @@
         fetch(`/cases/${caseId}/visual_data`)
             .then(r => r.json())
             .then(data => {
+                {% if case.capture_type != 'posts' %}
                 // Initialize Mind Map
                 const container = document.getElementById('mindmap');
                 const graphData = {
@@ -341,6 +394,34 @@
                         scales: { y: { beginAtZero: true } }
                     }
                 });
+                {% else %}
+                const tCtx = document.getElementById('timelineChart');
+                if (tCtx) {
+                    if (chart) chart.destroy();
+                    chart = new Chart(tCtx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: data.timeline_data.labels,
+                            datasets: [{
+                                label: 'Risk Score',
+                                data: data.timeline_data.scores,
+                                backgroundColor: 'rgba(244, 63, 94, 0.2)',
+                                borderColor: 'rgb(244, 63, 94)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { 
+                                y: { beginAtZero: true, max: 100 }
+                            }
+                        }
+                    });
+                }
+                {% endif %}
             });
     }
 

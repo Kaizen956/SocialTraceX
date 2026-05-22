@@ -13,6 +13,7 @@ from scraper import capture_flow, capture_flow_batch
 from pydantic import BaseModel
 import uvicorn
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 import sys
 
 if sys.platform == "win32":
@@ -32,6 +33,20 @@ async def lifespan(app: FastAPI):
         examiner = User(username="examiner", hashed_password=get_password_hash("forensic123"), role="examiner", name="Field Examiner")
         db.add(examiner)
         db.commit()
+    
+    # Simple migration for new fields
+    try:
+        db.execute(text("ALTER TABLE events ADD COLUMN risk_score INTEGER DEFAULT 0"))
+        db.commit()
+    except Exception:
+        pass # Column might already exist
+        
+    try:
+        db.execute(text("ALTER TABLE events ADD COLUMN matched_keywords TEXT DEFAULT ''"))
+        db.commit()
+    except Exception:
+        pass # Column might already exist
+
     yield
 
 app = FastAPI(title="ForensicView FastAPI", lifespan=lifespan)
@@ -128,11 +143,21 @@ def view_case(request: Request, case_id: int, user: User = Depends(get_current_a
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
     entries = db.query(Event).filter(Event.case_id == case_id).order_by(Event.id.desc()).all()
-    return templates.TemplateResponse(request=request, name="case_detail.html", context={"request": request, "user": user, "case": case, "entries": entries})
+    
+    # Calculate Risk Metrics
+    flagged_entries = [e for e in entries if getattr(e, 'risk_score', 0) > 0]
+    total_flagged = len(flagged_entries)
+    avg_risk_score = sum(e.risk_score for e in flagged_entries) / total_flagged if total_flagged > 0 else 0
+    
+    return templates.TemplateResponse(request=request, name="case_detail.html", context={
+        "request": request, "user": user, "case": case, "entries": entries,
+        "total_flagged": total_flagged, "avg_risk_score": int(avg_risk_score)
+    })
 
 class DiscoveryRequest(BaseModel):
     capture_type: str = None
     max_posts: int = 10
+    keywords: str = None
 
 @app.post("/cases/{case_id}/capture")
 async def start_capture(case_id: int, request: DiscoveryRequest = None, user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
@@ -145,6 +170,8 @@ async def start_capture(case_id: int, request: DiscoveryRequest = None, user: Us
             case.capture_type = request.capture_type
         if request.max_posts is not None:
             case.max_posts = request.max_posts
+        if request.keywords is not None:
+            case.keywords = request.keywords
         db.commit()
 
     # Fire Phase A scraper in background
@@ -201,12 +228,16 @@ def get_visual_data(case_id: int, user: User = Depends(get_current_active_user),
     # Target user is the center
     target_node_id = f"user_{case.target_username}"
     
+    target_pic_url = f"/static/{case.target_username} profile.jpg"
+    if not os.path.exists(os.path.join(BASE_DIR, "static", f"{case.target_username} profile.jpg")):
+        target_pic_url = "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+
     nodes_dict = {
         target_node_id: {
             "id": target_node_id, 
             "label": f"@{case.target_username}", 
             "shape": "image", 
-            "image": "https://cdn-icons-png.flaticon.com/512/149/149071.png", 
+            "image": target_pic_url, 
             "size": 40
         }
     }
@@ -268,12 +299,26 @@ def get_visual_data(case_id: int, user: User = Depends(get_current_active_user),
     chart_labels = [f"@{u[0]}" for u in sorted_users]
     chart_lengths = [u[1] for u in sorted_users]
 
+    # For timeline chart
+    timeline_labels = []
+    timeline_scores = []
+    
+    for e in sorted([ev for ev in events if ev.event_type == 'post'], key=lambda x: x.id):
+        # use shortened timestamp or just ID for label
+        ts = e.timestamp.split('T')[1][:8] if 'T' in e.timestamp else f"Post {e.id}"
+        timeline_labels.append(ts)
+        timeline_scores.append(getattr(e, 'risk_score', 0))
+
     return {
         "nodes": nodes,
         "edges": edges,
         "chart_data": {
             "labels": chart_labels,
             "lengths": chart_lengths
+        },
+        "timeline_data": {
+            "labels": timeline_labels,
+            "scores": timeline_scores
         }
     }
 

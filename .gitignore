@@ -3,4 +3,6 @@
 /data/*
 /Frontend
 /screenshots/*
-
+*.jpg
+/data/*.db
+/data/.json
